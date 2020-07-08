@@ -41,7 +41,7 @@ def download_store_nyc_crime(**kwargs):
     if not bucket_exists:
         s3.create_bucket("nyc-crime")
 
-    file_exists = s3.check_for_key(f"nyc-crime-new-airflow.csv", bucket="nyc-crime")
+    file_exists = s3.check_for_key(f"nyc-crime-new-airflow.csv", bucket_name="nyc-crime")
     if not file_exists:
 
         logging.info("Started download and storage of nyc crime data to S3 compatible storage backend")
