@@ -33,7 +33,7 @@ airflow_deploy:
 .PHONY: airflow_clear_runs
 ## Clear all airflow runs
 airflow_clear_runs:
-	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow airflow clear -c nyc_crime_analysis"
+	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow clear -c nyc_crime_analysis"
 
 .PHONY: run_local_transform
 ## Run local Spark transforms
