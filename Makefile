@@ -28,7 +28,7 @@ airflow_trigger_dag:
 .PHONY: airflow_deploy
 ## Deploy airflow file
 airflow_deploy:
-	cp  test_airflow.py ~/docker/airflow-webserver/dags/.
+	cp src/nyc_crime_airflow_etl.py ~/docker/airflow-webserver/dags/.
 
 .PHONY: airflow_clear_runs
 ## Clear all airflow runs
