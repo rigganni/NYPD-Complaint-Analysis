@@ -57,7 +57,7 @@ def download_store_nypd_complaint(**kwargs):
         logging.info("File nypd-complaint.csv already exists")
 
     # Download NYC weather data and store to S3-compatible backend
-    file_exists = s3.check_for_key(f"nyc-weather.csv", bucket_name="nyc-complaint")
+    file_exists = s3.check_for_key(f"nyc-weather.csv", bucket_name="nypd-complaint")
     if not file_exists:
 
         logging.info("Started download and storage of NYC weather data to S3 compatible storage backend")
