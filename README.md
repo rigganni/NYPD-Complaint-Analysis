@@ -13,4 +13,5 @@ An analysis of NYC crime using open data sources.
 #### Future Improvements
 
 * Execute Spark code from Airflow
-  * Currently limited by not being to able to call Docker container from another within another
+  * Local Airflow service is running in a container. Currently limited by not being to able to call Docker container from another within another container. Could create an API (i.e. gunicorn & flask) or just a hook to call `make run_transform_local`.
+  * Out of scope for this project currently
