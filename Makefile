@@ -10,7 +10,7 @@
 .PHONY: requirements
 ## Install Python Dependencies
 requirements: test_environment
-	@echo ">>> Creating conda environment nyc-crime-analysis"
+	@echo ">>> Creating conda environment nypd-complaint-analysis"
 	conda env create -f conda.yml
 
 
@@ -23,17 +23,17 @@ clean:
 .PHONY: airflow_trigger_dag
 ## Execute airflow
 airflow_trigger_dag:
-	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow trigger_dag nyc_crime_analysis"
+	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis"
 
 .PHONY: airflow_deploy
 ## Deploy airflow file
 airflow_deploy:
-	cp src/nyc_crime_airflow_etl.py ~/docker/airflow-webserver/dags/.
+	cp src/nypd_complaint_airflow.py ~/docker/airflow-webserver/dags/.
 
 .PHONY: airflow_clear_runs
 ## Clear all airflow runs
 airflow_clear_runs:
-	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow clear -c nyc_crime_analysis"
+	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow clear -c nypd_complaint_analysis"
 
 .PHONY: run_local_transform
 ## Run local Spark transforms
@@ -46,7 +46,7 @@ run_local_transform:
 ## Lint all python files
 lint:
 	yapf -i src/load_data.py
-	yapf -i src/nyc_crime_airflow_etl.py
+	yapf -i src/nypd_complaint_airflow_etl.py
 	yapf -i src/transform_data.py
 
 #################################################################################
