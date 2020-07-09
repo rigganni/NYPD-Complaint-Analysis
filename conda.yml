@@ -1,4 +1,4 @@
-name: nyc-crime-analysis
+name: nypd-complaint-analysis
 channels:
   - conda-forge
   - defaults
