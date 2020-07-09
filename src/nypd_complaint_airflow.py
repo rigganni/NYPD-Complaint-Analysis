@@ -5,9 +5,10 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.hooks.S3_hook import S3Hook
 import logging
+import sys
 
 DEFAULT_ARGS = {
-    'owner': 'Nick Riggan',
+    'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2020, 7, 8),
     'email': ['riggan@pm.me'],
@@ -32,8 +33,15 @@ def download_store_nypd_complaint(**kwargs):
     None
     """
 
-    # S3 Hook should called "local_minio" should be created already on Airflow
-    s3 = S3Hook('local_minio')
+    env = kwargs['dag_run'].conf['env']
+    if env == 'local':
+        # S3 Hook should called "local_minio" should be created already on Airflow
+        s3 = S3Hook('local_minio')
+        logging.info("*** Running local ***")
+    elif env == 'aws':
+        # S3 Hook should called "aws_s3" should be created already on Airflow
+        s3 = S3Hook('aws_s3')
+        logging.info("*** Running on AWS ***")
 
     # Check if bucket already exists
     # If not, create new bucket
@@ -71,6 +79,9 @@ def download_store_nypd_complaint(**kwargs):
 
         logging.info("File nyc-weather.csv already exists")
 
+def load_to_postgres():
+    #df = pd.read_csv
+    pass
 
 # DAG task to download to S3 compatible storage backend
 t1 = PythonOperator(

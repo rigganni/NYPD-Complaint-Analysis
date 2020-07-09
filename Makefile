@@ -20,10 +20,15 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 
-.PHONY: airflow_trigger_dag
-## Execute airflow
-airflow_trigger_dag:
-	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis"
+.PHONY: airflow_trigger_dag_local
+## Execute airflow on local dev environment
+airflow_trigger_dag_local:
+	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"local\"}'"
+
+.PHONY: airflow_trigger_dag_aws
+## Execute airflow on AWS
+airflow_trigger_dag_aws:
+	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"aws\"}'"
 
 .PHONY: airflow_deploy
 ## Deploy airflow file
@@ -41,6 +46,12 @@ run_local_transform:
 	docker cp src/transform_data.py spark:/tmp/.
 	docker cp dl.cfg spark:/tmp/.
 	docker exec -it spark sh -c "python /tmp/transform_data.py"
+
+.PHONY: spark_analysis
+## Open interactive prompt for Spark ad hoc analysis
+spark_analysis:
+	docker cp src/interactive_analysis.py spark:/tmp/.
+	docker exec -it spark sh -c "python -i /tmp/interactive_analysis.py"
 
 .PHONY: lint
 ## Lint all python files
