@@ -31,7 +31,7 @@ def create_spark_session():
     # Adapted from https://www.jitsejan.com/setting-up-spark-with-minio-as-object-storage.html
     conf = (
         SparkConf()
-        .setAppName("NYC Crime Analysis")
+        .setAppName("NYPD complaint Analysis")
         .set("spark.hadoop.fs.s3a.endpoint", aws_s3_uri)
         .set("spark.hadoop.fs.s3a.access.key", aws_access_key)
         .set("spark.hadoop.fs.s3a.secret.key", aws_secret_key)
@@ -43,9 +43,9 @@ def create_spark_session():
     spark = sqlContext.sparkSession
     return spark
 
-def get_nyc_crime_record_cnt(spark):
+def get_nypd_complaint_record_cnt(spark):
     """
-    NYC crime analysis
+    NYPD complaint analysis
 
     Parameters:
     spark (pyspark.sql.SparkSession): Spark session
@@ -54,14 +54,14 @@ def get_nyc_crime_record_cnt(spark):
     None
     """
 
-    df = spark.read.csv("s3a://nyc-crime/nyc-crime.csv", inferSchema = True, header = True)
+    df = spark.read.csv("s3a://nypd-complaint/nypd-complaint.csv", inferSchema = True, header = True)
     df.printSchema()
 
-    df.createOrReplaceTempView("nyc_crime_analysis")
+    df.createOrReplaceTempView("nypd_complaint_analysis")
 
     record_cnt = spark.sql("""
     SELECT COUNT(1) as cnt
-    FROM nyc_crime_analysis;
+    FROM nypd_complaint_analysis;
     """)
 
     print(record_cnt.head())
@@ -69,7 +69,7 @@ def get_nyc_crime_record_cnt(spark):
     cmplnt_cnt_by_fr_dt = spark.sql("""
     SELECT CMPLNT_FR_DT, 
            COUNT(1) AS CNT
-    FROM nyc_crime_analysis
+    FROM nypd_complaint_analysis
     GROUP BY CMPLNT_FR_DT
     ORDER BY CNT DESC;
     """)
@@ -83,7 +83,7 @@ def get_nyc_crime_record_cnt(spark):
 
 def main():
     """
-    Analyze NYC crime
+    Analyze NYPD complaints
 
     Parameters:
     None
@@ -93,7 +93,7 @@ def main():
     """
 
     spark = create_spark_session()
-    get_nyc_crime_record_cnt(spark)
+    get_nypd_complaint_record_cnt(spark)
 
 if __name__ == "__main__":
     main()
