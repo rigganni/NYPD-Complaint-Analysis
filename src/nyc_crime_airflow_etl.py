@@ -41,6 +41,7 @@ def download_store_nyc_crime(**kwargs):
     if not bucket_exists:
         s3.create_bucket("nyc-crime")
 
+    # Download NYC complaint data and store to S3-compatible backend
     file_exists = s3.check_for_key(f"nyc-crime-new-airflow.csv", bucket_name="nyc-crime")
     if not file_exists:
 
@@ -53,7 +54,22 @@ def download_store_nyc_crime(**kwargs):
                      bucket_name="nyc-crime")
     else:
 
-        logging.info("File already exists")
+        logging.info("File nyc-crime-new-airflow.csv already exists")
+
+    # Download NYC weather data and store to S3-compatible backend
+    file_exists = s3.check_for_key(f"nyc-weather.csv", bucket_name="nyc-crime")
+    if not file_exists:
+
+        logging.info("Started download and storage of nyc weather data to S3 compatible storage backend")
+
+        # Download NYC crime data
+        urllib.request.urlretrieve("https://github.com/rigganni/NYC-Crime-Analysis/raw/master/data/nyc-weather.csv", "/tmp/nyc-weather.csv")
+        s3.load_file("/tmp/nyc-weather.csv",
+                     key=f"nyc-weather.csv",
+                     bucket_name="nyc-crime")
+    else:
+
+        logging.info("File nyc-weather.csv already exists")
 
 
 # DAG task to download to S3 compatible storage backend
