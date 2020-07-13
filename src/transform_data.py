@@ -54,7 +54,7 @@ def create_spark_session(env="local"):
 
     return spark
 
-def get_nypd_complaint_record_cnt(spark, env="local", aws_access_key="", aws_secret_key=""):
+def create_csv_for_redshift(spark, env="local", aws_access_key="", aws_secret_key="", dataset="", s3_uri="", sql=""):
     """
     NYPD complaint analysis
 
@@ -63,6 +63,9 @@ def get_nypd_complaint_record_cnt(spark, env="local", aws_access_key="", aws_sec
     env (string): Environment (i.e. local or aws). Default: local
     aws_access_key (string): AWS access key
     aws_secret_key (string): AWS secret key
+    dataset (string): Dataset to transform & write to CSV
+    s3_uri (string): S3 URI of source data to transform
+    sql (string): SQL statement to transform dataset
 
     Returns:
     None
@@ -75,54 +78,20 @@ def get_nypd_complaint_record_cnt(spark, env="local", aws_access_key="", aws_sec
         aws_access_key = config.get("AWS", "AWS_ACCESS_KEY_ID")
         aws_secret_key = config.get("AWS", "AWS_SECRET_ACCESS_KEY")
 
-    df = spark.read.csv("s3a://nypd-complaint/nypd-complaint.csv", inferSchema = True, header = True)
-#   df.printSchema()
+    df = spark.read.csv(s3_uri, inferSchema = True, header = True)
 
-    df.createOrReplaceTempView("nypd_complaint_analysis")
+    df.createOrReplaceTempView(dataset)
 
-    record_cnt = spark.sql("""
-    SELECT COUNT(1) as cnt
-    FROM nypd_complaint_analysis;
-    """)
+    result = spark.sql(sql)
 
-#   print(record_cnt.head())
+    csv_file = "/tmp/" + dataset + ".csv"
+    s3_key = dataset + ".csv"
 
-    cmplnt_cnt_by_fr_dt = spark.sql("""
-    SELECT CMPLNT_FR_DT, 
-           COUNT(1) AS CNT
-    FROM nypd_complaint_analysis
-    GROUP BY CMPLNT_FR_DT
-    ORDER BY CNT DESC;
-    """)
+    # Write Pandas dataframe to create single CSV file
+    # Utilizing Spark's csv write function creates many files 
+    result.toPandas().to_csv(csv_file, header=True, index=False)
 
-#   i = 1
-#   for index, row in cmplnt_cnt_by_fr_dt.select("*").toPandas().iterrows():
-#       if i > 10:
-#           break
-#       print(row["CMPLNT_FR_DT"] + " " + str(row["CNT"]))
-#       i += 1
-
-    df = spark.read.csv("s3a://nypd-complaint/nyc-weather.csv", inferSchema = True, header = True)
-#   df.printSchema()
-
-    df.createOrReplaceTempView("nyc_weather")
-
-    record_cnt = spark.sql("""
-    SELECT COUNT(1) as cnt
-    FROM nyc_weather;
-    """)
-#   print(record_cnt.head())
-
-    temperature_analysis_by_date = spark.sql("""
-    SELECT to_date(DATE, 'YYYY-MM-DD') AS date, 
-           MAX(HourlyDryBulbTemperature) AS HighTemp,
-           MIN(HourlyDryBulbTemperature) AS LowTemp 
-    FROM nyc_weather 
-    GROUP BY to_date(DATE, 'YYYY-MM-DD') 
-    ORDER BY date DESC;
-    """)
-
-    temperature_analysis_by_date.toPandas().to_csv("/tmp/temperature_analysis_by_date.csv", header=True)
+    # Set up boto3 S3 resource based on execution environment
     if env == "local":
         s3 = boto3.resource('s3',
              endpoint_url=aws_s3_uri,
@@ -133,7 +102,8 @@ def get_nypd_complaint_record_cnt(spark, env="local", aws_access_key="", aws_sec
              aws_access_key_id=aws_access_key,
              aws_secret_access_key=aws_secret_key)
 
-    s3.Bucket("nypd-complaint").upload_file("/tmp/temperature_analysis_by_date.csv", "temperature_analysis_by_date.csv")
+    # Write CSV file to S3
+    s3.Bucket("nypd-complaint").upload_file(csv_file, s3_key)
 
 def main():
     """
@@ -152,7 +122,39 @@ def main():
     aws_access_key = sys.argv[2]
     aws_secret_key = sys.argv[3]
     spark = create_spark_session(env)
-    get_nypd_complaint_record_cnt(spark, env, aws_access_key, aws_secret_key)
+
+    # Transform & create NYPD complaint CSV file for redshift
+    create_csv_for_redshift(spark, 
+                            env, 
+                            aws_access_key, 
+                            aws_secret_key,
+                            dataset="nypd_complaint",
+                            s3_uri="s3a://nypd-complaint/nypd-complaint.csv",
+                            sql="""
+                            SELECT CMPLNT_FR_DT, 
+                                   COUNT(1) AS CNT
+                            FROM nypd_complaint
+                            GROUP BY CMPLNT_FR_DT
+                            ORDER BY CNT DESC;
+                            """ 
+                            )
+
+    # Transform & create NYC weather CSV file for redshift
+    create_csv_for_redshift(spark, 
+                            env, 
+                            aws_access_key, 
+                            aws_secret_key,
+                            dataset="nyc_weather",
+                            s3_uri="s3a://nypd-complaint/nyc-weather.csv",
+                            sql="""
+                            SELECT to_date(DATE, 'YYYY-MM-DD') AS date, 
+                                   MAX(HourlyDryBulbTemperature) AS HighTemp,
+                                   MIN(HourlyDryBulbTemperature) AS LowTemp 
+                            FROM nyc_weather 
+                            GROUP BY to_date(DATE, 'YYYY-MM-DD') 
+                            ORDER BY date DESC;
+                            """ 
+                            )
 
 if __name__ == "__main__":
     main()
