@@ -23,35 +23,73 @@ clean:
 .PHONY: airflow_trigger_dag_local
 ## Execute airflow on local dev environment
 airflow_trigger_dag_local:
-	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"local\"}'"
+	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"local\"}'"
 
 .PHONY: airflow_trigger_dag_aws
 ## Execute airflow on AWS
 airflow_trigger_dag_aws:
-	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"aws\"}'"
+	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"aws\"}'"
 
 .PHONY: airflow_deploy
 ## Deploy airflow file
 airflow_deploy:
-	cp src/nypd_complaint_airflow.py ~/docker/airflow-webserver/dags/.
+	cp src/nypd_complaint_airflow.py ${AIRFLOW_DAG_ROOT_FOLDER}
 
 .PHONY: airflow_clear_runs
 ## Clear all airflow runs
 airflow_clear_runs:
-	docker exec -it webserver-airflow sh -c "/entrypoint.sh airflow clear -c nypd_complaint_analysis"
+	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow clear -c nypd_complaint_analysis"
 
 .PHONY: run_local_transform
 ## Run local Spark transforms
 run_local_transform:
-	docker cp src/transform_data.py spark:/tmp/.
-	docker cp dl.cfg spark:/tmp/.
-	docker exec -it spark sh -c "python /tmp/transform_data.py"
+	docker cp src/transform_data.py ${SPARK_LOCAL_MASTER_DOCKER_ID}:/tmp/.
+	docker cp local.cfg ${SPARK_LOCAL_MASTER_DOCKER_ID}:/tmp/.
+	docker exec -it ${SPARK_LOCAL_MASTER_DOCKER_ID} sh -c "python /tmp/transform_data.py 'local'"
 
-.PHONY: spark_analysis
-## Open interactive prompt for Spark ad hoc analysis
-spark_analysis:
-	docker cp src/interactive_analysis.py spark:/tmp/.
-	docker exec -it spark sh -c "python -i /tmp/interactive_analysis.py"
+.PHONY: spark_analysis_local
+## Open interactive prompt for Spark ad hoc analysis on local Spark docker container
+spark_analysis_local:
+	docker cp src/interactive_analysis.py ${SPARK_LOCAL_MASTER_DOCKER_ID}:/tmp/.
+	docker exec -it ${SPARK_LOCAL_MASTER_DOCKER_ID} sh -c "python -i /tmp/interactive_analysis.py local"
+
+.PHONY: spark_analysis_aws
+## Open interactive prompt for Spark ad hoc analysis on AWS EMR cluster
+spark_analysis_aws:
+	$(eval emr_id=$(shell sh -c "aws emr list-clusters --region us-west-2 --active | jq '[.Clusters | .[] | .Id][0]'")) 
+	@echo $(emr_id)
+	$(eval dns=$(shell sh -c "aws emr describe-cluster --cluster-id $(emr_id) --region us-west-2 --query Cluster.MasterPublicDnsName"))
+	@echo $(dns)
+	scp -i ${AWS_EMR_SSH_IDENTITY_FILE} -o StrictHostKeyChecking=no src/interactive_analysis.py hadoop@$(dns):/tmp/.
+	ssh -i ${AWS_EMR_SSH_IDENTITY_FILE} -o StrictHostKeyChecking=no hadoop@$(dns) "/usr/bin/python3 -i /tmp/interactive_analysis.py aws"
+
+.PHONY: test_transform_aws
+## Test transform_data.py on existing EMR instance on AWS
+test_transform_aws:
+	$(eval emr_id=$(shell sh -c "aws emr list-clusters --region us-west-2 --active | jq '[.Clusters | .[] | .Id][0]'")) 
+	@echo $(emr_id)
+	$(eval dns=$(shell sh -c "aws emr describe-cluster --cluster-id $(emr_id) --region us-west-2 --query Cluster.MasterPublicDnsName"))
+	@echo $(dns)
+	scp  -i ${AWS_EMR_SSH_IDENTITY_FILE} -o StrictHostKeyChecking=no src/transform_data.py hadoop@$(dns):/tmp/.
+	aws emr add-steps --region us-west-2 --cluster-id $(emr_id) --steps Type="CUSTOM_JAR",Name="Test Transforms",Jar="command-runner.jar",ActionOnFailure="CONTINUE",Args="['sudo', '-H', '-u', 'hadoop', 'bash', '-c', \"/usr/bin/python3 /tmp/transform_data.py aws ${AWS_ACCESS_KEY} ${AWS_SECRET_ACCESS_KEY}\"]"
+
+.PHONY: ssh_aws_emr_master
+## Connect to master node of running AWS EMR cluster
+ssh_aws_emr_master:
+	$(eval emr_id=$(shell sh -c "aws emr list-clusters --region us-west-2 --active | jq '[.Clusters | .[] | .Id][0]'")) 
+	@echo $(emr_id)
+	$(eval dns=$(shell sh -c "aws emr describe-cluster --cluster-id $(emr_id) --region us-west-2 --query Cluster.MasterPublicDnsName"))
+	@echo $(dns)
+	ssh -i ${AWS_EMR_SSH_IDENTITY_FILE} -o StrictHostKeyChecking=no hadoop@$(dns)
+
+
+.PHONY: mount_aws_emr_log_directory
+## Mount AWS EMR logs via s3fs to local directory
+mount_aws_emr_log_directory:
+	mkdir -p /tmp/aws-emr-logs
+	$(eval user_id=$(shell sh -c "id -u"))
+	$(eval user_group_id=$(shell sh -c "id -g"))
+	s3fs ${AWS_EMR_LOG_BUCKET} /tmp/aws-emr-logs -o passwd_file=${AWS_S3_S3FS_PASSWORD_FILE} -o allow_other,uid=$(user_id),gid=$(user_group_id) -o umask=0007
 
 .PHONY: lint
 ## Lint all python files
