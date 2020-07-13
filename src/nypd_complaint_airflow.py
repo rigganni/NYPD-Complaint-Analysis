@@ -180,7 +180,6 @@ job_sensor = EmrJobFlowSensor(
     dag=dag
 )
 
-
 t1 >> job_flow_creator 
 #t2 >> job_flow_creator
 #t3 >> job_flow_creator
