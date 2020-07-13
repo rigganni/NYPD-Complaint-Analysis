@@ -9,7 +9,7 @@
 
 .PHONY: requirements
 ## Install Python Dependencies
-requirements: test_environment
+requirements:
 	@echo ">>> Creating conda environment nypd-complaint-analysis"
 	conda env create -f conda.yml
 
@@ -19,6 +19,8 @@ requirements: test_environment
 clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
+	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow delete_dag nypd_complaint_analysis"
+	rm -ri ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint
 
 .PHONY: airflow_trigger_dag_local
 ## Execute airflow on local dev environment
@@ -33,7 +35,11 @@ airflow_trigger_dag_aws:
 .PHONY: airflow_deploy
 ## Deploy airflow file
 airflow_deploy:
-	cp src/nypd_complaint_airflow.py ${AIRFLOW_DAG_ROOT_FOLDER}
+	mkdir -p ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/nypd_complaint_airflow.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/transform_data.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/create_redshift_cluster_database.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/redshift.cfg ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 
 .PHONY: airflow_clear_runs
 ## Clear all airflow runs
@@ -72,6 +78,17 @@ test_transform_aws:
 	@echo $(dns)
 	scp  -i ${AWS_EMR_SSH_IDENTITY_FILE} -o StrictHostKeyChecking=no src/transform_data.py hadoop@$(dns):/tmp/.
 	aws emr add-steps --region us-west-2 --cluster-id $(emr_id) --steps Type="CUSTOM_JAR",Name="Test Transforms",Jar="command-runner.jar",ActionOnFailure="CONTINUE",Args="['sudo', '-H', '-u', 'hadoop', 'bash', '-c', \"/usr/bin/python3 /tmp/transform_data.py aws ${AWS_ACCESS_KEY} ${AWS_SECRET_ACCESS_KEY}\"]"
+
+# Source: https://stackoverflow.com/questions/53382383/makefile-cant-use-conda-activate
+# Need to specify bash in order for conda activate to work.
+SHELL=/bin/bash
+# Note that the extra activate is needed to ensure that the activate floats env to the front of PATH
+CONDA_ACTIVATE=source $$(conda info --base)/etc/profile.d/conda.sh ; conda activate ; conda activate
+CONDA_DEACTIVATE=source $$(conda info --base)/etc/profile.d/conda.sh ; conda deactivate ; conda deactivate
+.PHONY: test_redshift_aws_creation
+## Test creating of RedShift cluster
+test_redshift_aws_creation:
+	($(CONDA_ACTIVATE) nypd-complaint-analysis; cd src; python create_redshift_cluster_database.py; $(CONDA_DEACTIVATE) nypd-complaint-analysis)
 
 .PHONY: ssh_aws_emr_master
 ## Connect to master node of running AWS EMR cluster
