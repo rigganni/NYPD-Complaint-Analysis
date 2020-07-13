@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 import urllib.request
-
 from airflow.models import Variable
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -11,7 +10,8 @@ from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
 import logging
 import sys
 
-s3_etl_uri = "s3://nypd-complaint/transform_data.py"
+etl_filename = "transform_data.py"
+s3_etl_uri = "s3://nypd-complaint/" + etl_filename
 s3_install_uri = "s3://nypd-complaint/install-requirements.sh"
 
 aws_hook = AwsHook('aws_credentials')
@@ -34,57 +34,27 @@ DEFAULT_ARGS = {
 dag = DAG('nypd_complaint_analysis', default_args=DEFAULT_ARGS,
           schedule_interval="@once")
 
-#               'spark-submit',
-#               '--deploy-mode',
-#               'cluster',
-#               '--master',
-#               'yarn',
-#               s3_etl_uri,
-#               'aws',
-#               aws_access_key,
-#               aws_secret_key
-# Define spark steps to execute
-# See https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-hadoop-script.html to run script as EMR step
+# Set steps to run once bootstrapping of EMR cluster is complete
+# Note: use "sudo -H -u hadoop" to run python script to enable environment
+# as if logging in as user "hadoop"
 SPARK_STEPS = [
     {
         'Name': 'transform_weather',
         'ActionOnFailure': 'CONTINUE',
         'HadoopJarStep': {
-            'Jar': 's3://us-west-2.elasticmapreduce/libs/script-runner/script-runner.jar',
+            'Jar': 'command-runner.jar',
             'Args': [
-                's3://nypd-complaint/run_transformations.sh',
-                'aws',
-                aws_access_key,
-                aws_secret_key
+                'sudo',
+                '-H',
+                '-u',
+                'hadoop',
+                'bash',
+                '-c',
+                "aws s3 cp " + s3_etl_uri + " /home/hadoop/" + etl_filename + " && sleep 30 && /usr/bin/python3 /home/hadoop/" + etl_filename + " aws " + aws_access_key + " " + aws_secret_key
             ]
         }
     }
-#   {
-#       'Name': 'sleep_60',
-#       'ActionOnFailure': 'CONTINUE',
-#       'HadoopJarStep': {
-#           'Jar': 'command-runner.jar',
-#           'Args': [
-#               'sleep',
-#               '60'
-#           ]
-#       }
-#   },
-#   {
-#       'Name': 'cp_tranform_to_local',
-#       'ActionOnFailure': 'CONTINUE',
-#       'HadoopJarStep': {
-#           'Jar': 'command-runner.jar',
-#           'Args': [
-#               'aws',
-#               's3',
-#               'cp',
-#               's3://nypd-complaint/transform_data.py',
-#               '/home/hadoop/transform_data.py'
-#           ]
-#       }
-#   }
-]
+ ]
 
 # Set up EMR cluster config
 # Adjust machine size / count here
@@ -170,10 +140,6 @@ t1 = PythonOperator(
                },
     dag=dag
 )
-#   params={'file_path': '/tmp/nypd-complaint.csv',
-#           'file_url': 'https://data.cityofnewyork.us/api/views/qgea-i56i/rows.csv?accessType=DOWNLOAD',
-#           'filename': 'nypd-complaint.csv'
-#           },
 
 # DAG task to download NYC NOAA weather data to S3 compatible storage backend
 #t2 = PythonOperator(
@@ -213,6 +179,7 @@ job_sensor = EmrJobFlowSensor(
     aws_conn_id='aws_credentials',
     dag=dag
 )
+
 
 t1 >> job_flow_creator 
 #t2 >> job_flow_creator
