@@ -7,9 +7,12 @@ from airflow.hooks.S3_hook import S3Hook
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
+from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator
 import logging
 import sys
 from create_redshift_cluster_database import *
+from create_bastion_host import *
+from load_data_to_redshift import *
 
 etl_filename = "transform_data.py"
 s3_etl_uri = "s3://nypd-complaint/" + etl_filename
@@ -71,7 +74,7 @@ JOB_FLOW_OVERRIDES = {
         'TerminationProtected': False,
         'Ec2KeyName': Variable.get("ec2_key_name"),
         'Ec2SubnetId': Variable.get("ec2_subnet_id"),
-        'KeepJobFlowAliveWhenNoSteps': True,
+        'KeepJobFlowAliveWhenNoSteps': False,
     },
     'BootstrapActions': [
         {
@@ -190,23 +193,39 @@ job_sensor = EmrJobFlowSensor(
 cluster_remover = EmrTerminateJobFlowOperator(
       task_id='remove_cluster',
       job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
-      aws_conn_id='aws_credentials,
-      dag=dag'
+      aws_conn_id='aws_credentials',
+      dag=dag
 )
 
 # DAG task to create RedShift cluster
 create_redshift_cluster = PythonOperator(
     task_id='create_redshift_cluster',
-    provide_context=True,
     python_callable=create_redshift_cluster,
+    dag=dag
+)
+
+# DAG task to create RedShift bastion host for ssh tunneling
+create_bastion_host = PythonOperator(
+    task_id='create_ssh_bastion_host',
+    python_callable=create_bastion_host,
+    dag=dag
+)
+
+# DAG task to load data from S3 to RedShift
+load_data_to_redshift = PythonOperator(
+    task_id='load_data_to_redshift',
+    python_callable=insert_tables,
+    params={'env': 'aws' },
     dag=dag
 )
 
 t1 >> job_flow_creator 
 
-# Create AWS RedShift cluster while transformations are run on AWS EMR
-t1 >> create_redshift_cluster
+# Create AWS RedShift cluster while transformations run on AWS EMR
+t1 >> create_redshift_cluster >> load_data_to_redshift
+t1 >> create_bastion_host >> load_data_to_redshift
 
+job_sensor >> load_data_to_redshift
 #t2 >> job_flow_creator
 #t3 >> job_flow_creator
 job_flow_creator >> job_sensor >> cluster_remover

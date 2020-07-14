@@ -21,7 +21,7 @@ def create_redshift_cluster():
     # Source: https://stackoverflow.com/questions/19359556/configparser-reads-capital-keys-and-make-them-lower-case
     config.optionxform = str
 
-    config.read_file(open('redshift.cfg'))
+    config.read_file(open('/tmp/redshift.cfg'))
 
     KEY                    = config.get('AWS','KEY')
     SECRET                 = config.get('AWS','SECRET')
@@ -81,9 +81,9 @@ def create_redshift_cluster():
 
     # Write newly created ARN to IAM_ROLE ARN variable in redshift.cfg
     # Adapted from https://stackoverflow.com/questions/27964134/change-value-in-ini-file-using-configparser-python
-    config.set("IAM_ROLE", "ARN", roleArn)
+    config.set("DWH", "IAM_ROLE_ARN", roleArn)
 
-    with open("redshift.cfg", "w") as configfile:
+    with open("/tmp/redshift.cfg", "w") as configfile:
         config.write(configfile)
 
     # Create RedShift cluster
@@ -124,7 +124,7 @@ def create_redshift_cluster():
     # Adapted from https://stackoverflow.com/questions/27964134/change-value-in-ini-file-using-configparser-python
     config.set("DWH", "DWH_HOST", DWH_ENDPOINT)
 
-    with open("redshift.cfg", "w") as configfile:
+    with open("/tmp/redshift.cfg", "w") as configfile:
         config.write(configfile)
 
 def main():

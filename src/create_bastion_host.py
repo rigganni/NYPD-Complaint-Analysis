@@ -2,7 +2,7 @@ import boto3
 import socket
 import time
 import configparser
-
+import os
 
 def create_bastion_host():
     """
@@ -22,11 +22,14 @@ def create_bastion_host():
     # Source: https://stackoverflow.com/questions/19359556/configparser-reads-capital-keys-and-make-them-lower-case
     config.optionxform = str
 
-    config.read_file(open('redshift.cfg'))
+    config.read_file(open('/tmp/redshift.cfg'))
 
     ec2_key = config.get("BASTION", "KEY_NAME")
     ec2_subnet_id = config.get("BASTION", "SUBNET_ID")
     ec2_group_id = config.get("BASTION", "GROUP_ID")
+    os.environ["AWS_ACCESS_KEY_ID"] = config.get("AWS", "KEY")
+    os.environ["AWS_SECRET_ACCESS_KEY"] = config.get("AWS", "SECRET")
+
 
     retries = 10
     retry_delay=10
@@ -76,7 +79,7 @@ def create_bastion_host():
     # Adapted from https://stackoverflow.com/questions/27964134/change-value-in-ini-file-using-configparser-python
     config.set("BASTION", "PUBLIC_DNS", public_dns_name)
     
-    with open("redshift.cfg", "w") as configfile:
+    with open("/tmp/redshift.cfg", "w") as configfile:
         config.write(configfile)
 
     return public_dns_name
