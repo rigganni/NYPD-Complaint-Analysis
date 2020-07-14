@@ -37,9 +37,14 @@ airflow_trigger_dag_aws:
 airflow_deploy:
 	mkdir -p ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 	cp src/nypd_complaint_airflow.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
-	cp src/transform_data.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
-	cp src/create_redshift_cluster_database.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
-	cp src/redshift.cfg ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/transform_data.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/create_redshift_cluster_database.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/redshift.cfg ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/load_data_to_redshift.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/create_bastion_host.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/sql_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	docker cp src/redshift.cfg ${AIRFLOW_DOCKER_ID}:/tmp/.
+	docker cp ${AWS_EMR_SSH_IDENTITY_FILE} ${AIRFLOW_DOCKER_ID}:/tmp/pkey.pem
 
 .PHONY: airflow_clear_runs
 ## Clear all airflow runs
