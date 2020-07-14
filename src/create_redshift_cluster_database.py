@@ -5,6 +5,16 @@ import configparser
 
 
 def create_redshift_cluster():
+    """
+    Create AWS RedShift cluster
+
+    Parameters:
+    None
+
+    Returns:
+    None
+    """
+
     config = configparser.ConfigParser()
 
     # Tell ConfigParser class to pass through options unchanged
@@ -83,7 +93,7 @@ def create_redshift_cluster():
             ClusterType=DWH_CLUSTER_TYPE,
             NodeType=DWH_NODE_TYPE,
             NumberOfNodes=int(DWH_NUM_NODES),
-            #ClusterSubnetGroupName=DWH_CLUSTER_SUBNET_GROUP_NAME, # Used to place cluster in specified VPC. You must have access to said VPC (i.e. VPN, bastion host, etc.)
+            ClusterSubnetGroupName=DWH_CLUSTER_SUBNET_GROUP_NAME, # Used to place cluster in specified VPC. You must have access to said VPC (i.e. VPN, bastion host, etc.)
 
             #Identifiers & Credentials
             DBName=DWH_DB,
