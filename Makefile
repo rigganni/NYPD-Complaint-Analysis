@@ -90,6 +90,18 @@ CONDA_DEACTIVATE=source $$(conda info --base)/etc/profile.d/conda.sh ; conda dea
 test_redshift_aws_creation:
 	($(CONDA_ACTIVATE) nypd-complaint-analysis; cd src; python create_redshift_cluster_database.py; $(CONDA_DEACTIVATE) nypd-complaint-analysis)
 
+.PHONY: connect_psql_redshift
+## Connect to nypd_complaint via psql
+connect_psql_redshift:
+	$(eval public_dns=$(shell sh -c "grep PUBLIC_DNS src/redshift.cfg | cut -d' ' -f 3"))
+	$(eval redshift_host=$(shell sh -c "grep DWH_HOST src/redshift.cfg | cut -d' ' -f 3"))
+	$(eval db_user=$(shell sh -c "grep DWH_DB_USER src/redshift.cfg | cut -d' ' -f 3"))
+	$(eval db_password=$(shell sh -c "grep DWH_DB_PASSWORD src/redshift.cfg | cut -d' ' -f 3"))
+	$(eval db_port=$(shell sh -c "grep DWH_PORT src/redshift.cfg | cut -d' ' -f 3"))
+	ssh -D localhost:8087 -S /tmp/.ssh-aws-bastion -M -o StrictHostKeyChecking=no -i ${AWS_EMR_SSH_IDENTITY_FILE} ec2-user@$(public_dns) -fNT -L 5439:$(redshift_host):5439
+	PGPASSWORD=$(db_password) psql -h 127.0.0.1 -d nypd_complaint -U $(db_user) -p $(db_port)
+	ssh -S /tmp/.ssh-aws-bastion -O exit $(public_dns)
+
 .PHONY: ssh_aws_emr_master
 ## Connect to master node of running AWS EMR cluster
 ssh_aws_emr_master:
