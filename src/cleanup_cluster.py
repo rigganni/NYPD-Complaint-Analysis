@@ -6,7 +6,7 @@ def cleanup_cluster(run_local = True, **kwargs):
 
     if not run_local:
         # Exit cleanup_cluster 
-        if not kwargs['dag_run'].conf['delete_redshift_cluster']:
+        if kwargs['dag_run'].conf['delete_redshift_cluster'] == "False":
             return 
 
     # Obtain RedShift credentials
