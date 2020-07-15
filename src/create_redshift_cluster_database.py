@@ -38,6 +38,7 @@ def create_redshift_cluster():
     DWH_IAM_ROLE_NAME      = config.get("DWH", "DWH_IAM_ROLE_NAME")
     DWH_ROLE_ARN           = config.get("DWH", "DWH_ROLE_ARN")
     DWH_CLUSTER_SUBNET_GROUP_NAME = config.get("DWH", "DWH_CLUSTER_SUBNET_GROUP_NAME")
+    DWH_CLUSTER_VPC_SECURITY_GROUP_ID = config.get("DWH", "DWH_CLUSTER_VPC_SECURITY_GROUP_ID")
 
     # Create client for RedShift
     redshift = boto3.client('redshift',
@@ -89,20 +90,23 @@ def create_redshift_cluster():
     # Create RedShift cluster
     try:
         response = redshift.create_cluster(       
-            #HW
+            # Hardware configuration
             ClusterType=DWH_CLUSTER_TYPE,
             NodeType=DWH_NODE_TYPE,
             NumberOfNodes=int(DWH_NUM_NODES),
             ClusterSubnetGroupName=DWH_CLUSTER_SUBNET_GROUP_NAME, # Used to place cluster in specified VPC. You must have access to said VPC (i.e. VPN, bastion host, etc.)
 
-            #Identifiers & Credentials
+            # Identifiers & Credentials
             DBName=DWH_DB,
             ClusterIdentifier=DWH_CLUSTER_IDENTIFIER,
             MasterUsername=DWH_DB_USER,
             MasterUserPassword=DWH_DB_PASSWORD,
             
-            #Roles (for s3 access)
-            IamRoles=[roleArn]  
+            # Roles (for s3 access)
+            IamRoles=[roleArn],
+
+            # VPC security group for use with ssh bastion host
+            VpcSecurityGroupIds = [ DWH_CLUSTER_VPC_SECURITY_GROUP_ID ]
         )
     except Exception as e:
         print(e)                       
