@@ -22,15 +22,25 @@ clean:
 	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow delete_dag nypd_complaint_analysis"
 	rm -ri ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint
 
+.PHONY: cleanup_aws
+## Remove bastion host & RedShift cluster
+cleanup_aws:
+	python src/cleanup_cluster.py
+
 .PHONY: airflow_trigger_dag_local
 ## Execute airflow on local dev environment
 airflow_trigger_dag_local:
 	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"local\"}'"
 
-.PHONY: airflow_trigger_dag_aws
-## Execute airflow on AWS
-airflow_trigger_dag_aws:
-	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"aws\"}'"
+.PHONY: airflow_trigger_dag_aws_keep_redshift
+## Execute airflow on AWS and keep RedShift cluster
+airflow_trigger_dag_aws_keep_redshift:
+	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"aws\", \"delete_redshift_cluster\":\"False\"}'"
+
+.PHONY: airflow_trigger_dag_aws_delete_redshift
+## Execute airflow on AWS and delete RedShift cluster
+airflow_trigger_dag_aws_delete_redshift:
+	docker exec -it ${AIRFLOW_DOCKER_ID} sh -c "/entrypoint.sh airflow trigger_dag nypd_complaint_analysis --conf '{\"env\":\"aws\", \"delete_redshift_cluster\":\"True\"}'"
 
 .PHONY: airflow_deploy
 ## Deploy airflow file
@@ -42,10 +52,26 @@ airflow_deploy:
 	cp src/redshift.cfg ${AIRFLOW_DAG_ROOT_FOLDER}/.
 	cp src/load_data_to_redshift.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
 	cp src/create_bastion_host.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/cleanup_cluster.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
 	cp src/sql_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/transform_data.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/create_redshift_cluster_database.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/redshift.cfg ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/load_data_to_redshift.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/create_bastion_host.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/cleanup_cluster.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/sql_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 	docker cp src/redshift.cfg ${AIRFLOW_DOCKER_ID}:/tmp/.
+	docker cp src/bastion.cfg ${AIRFLOW_DOCKER_ID}:/tmp/.
 	docker cp ${AWS_EMR_SSH_IDENTITY_FILE} ${AIRFLOW_DOCKER_ID}:/tmp/pkey.pem
 
+.PHONY: airflow_get_configs
+## Download configparser files from AirFlow to local environment
+airflow_get_configs:
+	docker cp ${AIRFLOW_DOCKER_ID}:/tmp/bastion.cfg /tmp/.
+	docker cp ${AIRFLOW_DOCKER_ID}:/tmp/redshift.cfg /tmp/.
+
+airflow_deploy:
 .PHONY: airflow_clear_runs
 ## Clear all airflow runs
 airflow_clear_runs:
@@ -98,11 +124,11 @@ test_redshift_aws_creation:
 .PHONY: connect_psql_redshift
 ## Connect to nypd_complaint via psql
 connect_psql_redshift:
-	$(eval public_dns=$(shell sh -c "grep PUBLIC_DNS src/redshift.cfg | cut -d' ' -f 3"))
-	$(eval redshift_host=$(shell sh -c "grep DWH_HOST src/redshift.cfg | cut -d' ' -f 3"))
-	$(eval db_user=$(shell sh -c "grep DWH_DB_USER src/redshift.cfg | cut -d' ' -f 3"))
-	$(eval db_password=$(shell sh -c "grep DWH_DB_PASSWORD src/redshift.cfg | cut -d' ' -f 3"))
-	$(eval db_port=$(shell sh -c "grep DWH_PORT src/redshift.cfg | cut -d' ' -f 3"))
+	$(eval public_dns=$(shell sh -c "grep PUBLIC_DNS /tmp/bastion.cfg | cut -d' ' -f 3"))
+	$(eval redshift_host=$(shell sh -c "grep DWH_HOST /tmp/redshift.cfg | cut -d' ' -f 3"))
+	$(eval db_user=$(shell sh -c "grep DWH_DB_USER /tmp/redshift.cfg | cut -d' ' -f 3"))
+	$(eval db_password=$(shell sh -c "grep DWH_DB_PASSWORD /tmp/redshift.cfg | cut -d' ' -f 3"))
+	$(eval db_port=$(shell sh -c "grep DWH_PORT /tmp/redshift.cfg | cut -d' ' -f 3"))
 	ssh -D localhost:8087 -S /tmp/.ssh-aws-bastion -M -o StrictHostKeyChecking=no -i ${AWS_EMR_SSH_IDENTITY_FILE} ec2-user@$(public_dns) -fNT -L 5439:$(redshift_host):5439
 	PGPASSWORD=$(db_password) psql -h 127.0.0.1 -d nypd_complaint -U $(db_user) -p $(db_port)
 	ssh -S /tmp/.ssh-aws-bastion -O exit $(public_dns)
