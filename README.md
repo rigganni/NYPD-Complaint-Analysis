@@ -1,10 +1,10 @@
-# NYC Crime Analysis
+# NYPD Complaint Analysis
 
-An analysis of NYC crime using open data sources.
+An analysis of NYPD complaints using open data sources.
 
 #### Sources
 
-* NYC Crime Data
+* NYPD Complaint Data
   * https://data.cityofnewyork.us/Public-Safety/NYPD-Complaint-Data-Historic/qgea-i56i
 * Great article on creating reproducible data science datasets
   * Inspiration for utilizing Makefile
