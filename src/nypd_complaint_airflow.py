@@ -13,6 +13,7 @@ import sys
 from create_redshift_cluster_database import *
 from create_bastion_host import *
 from load_data_to_redshift import *
+from cleanup_cluster import *
 
 etl_filename = "transform_data.py"
 s3_etl_uri = "s3://nypd-complaint/" + etl_filename
@@ -153,7 +154,7 @@ t1 = PythonOperator(
 #    task_id='download_nyc_weather_store_s3',
 #    provide_context=True,
 #    python_callable=download_store_s3,
-#    params={'file_path': '/tmp/nyc-weather.csv',
+#    op_kwargs={'file_path': '/tmp/nyc-weather.csv',
 #            'file_url': 'https://github.com/rigganni/NYPD-Complaint-Analysis/raw/master/data/nyc-weather.csv',
 #            'filename': 'nyc-weather.csv'
 #            },
@@ -165,7 +166,7 @@ t1 = PythonOperator(
 #    task_id='download_install_requirements_store_s3',
 #    provide_context=True,
 #    python_callable=download_store_s3,
-#    params={'file_path': '/tmp/install-requirements.sh',
+#    op_kwargs={'file_path': '/tmp/install-requirements.sh',
 #            'file_url': 'https://github.com/rigganni/NYPD-Complaint-Analysis/raw/master/src/install-requirements.sh',
 #            'filename': 'install-requirements.sh'
 #            },
@@ -215,7 +216,17 @@ create_bastion_host = PythonOperator(
 load_data_to_redshift = PythonOperator(
     task_id='load_data_to_redshift',
     python_callable=insert_tables,
-    params={'env': 'aws' },
+    op_kwargs={'run_local': False },
+    provide_context=True,
+    dag=dag
+)
+
+# DAG task to delete RedShift cluster if requested
+cleanup_redshift_cluster = PythonOperator(
+    task_id='cleanup_redshift_cluster',
+    python_callable=cleanup_cluster,
+    op_kwargs={'run_local': False },
+    provide_context=True,
     dag=dag
 )
 
@@ -229,3 +240,4 @@ job_sensor >> load_data_to_redshift
 #t2 >> job_flow_creator
 #t3 >> job_flow_creator
 job_flow_creator >> job_sensor >> cluster_remover
+load_data_to_redshift >> cleanup_redshift_cluster

@@ -3,18 +3,25 @@ import psycopg2
 from sql_queries import copy_table_queries, insert_table_queries
 from sshtunnel import SSHTunnelForwarder
 
-def insert_tables(env):
+def insert_tables(run_local = True, **kwargs):
     """
     Insert data into dimensional model from EMR created CSV files
  
     Parameters:
-    None
+    kwargs: Keyword arguments
  
     Returns:
     None
     """
 
+    if run_local:
+        env = 'local'
+    else:
+        env = kwargs['dag_run'].conf['env']
+
+
     # Obtain RedShift cluster & db details
+    # Obtain parameters from redshift.cfg
     config = configparser.ConfigParser()
     config.read_file(open('/tmp/redshift.cfg'))
 
@@ -25,6 +32,10 @@ def insert_tables(env):
     DWH_DB_USER= config.get("DWH","DWH_DB_USER")
     DWH_DB_PASSWORD= config.get("DWH","DWH_DB_PASSWORD")
     DWH_PORT = int(config.get("DWH","DWH_PORT"))
+
+    # Obtain parameters from bastion.cfg
+    config = configparser.ConfigParser()
+    config.read_file(open('/tmp/bastion.cfg'))
 
     # Obtain SSH private key based on environment
     if env == "local":
@@ -39,10 +50,10 @@ def insert_tables(env):
              ssh_username=REMOTE_USERNAME,
              ssh_pkey=REMOTE_PKEY,
              remote_bind_address=(DWH_HOST, DWH_PORT),
-             local_bind_address=('localhost', 5440)):
+             local_bind_address=('127.0.0.1', 5440)):
 
 
-        conn = psycopg2.connect("host={} dbname={} user={} password={} port={}".format("localhost", DWH_DB, DWH_DB_USER, DWH_DB_PASSWORD, 5440))
+        conn = psycopg2.connect("host={} dbname={} user={} password={} port={}".format("127.0.0.1", DWH_DB, DWH_DB_USER, DWH_DB_PASSWORD, 5440))
         cur = conn.cursor()
         
         # Loop through all queries in sql_queries.py
@@ -54,7 +65,7 @@ def insert_tables(env):
         conn.close()
 
 
-def main():
+def main(**kwargs):
     """
     Load and insert data into nypc_complaint RedShift database
  
