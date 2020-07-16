@@ -22,3 +22,5 @@ An analysis of NYPD complaints using open data sources.
   * Currently hardcoded values in docker-compose and bash scripts for my specific environment
   * Traefik is used as reverse proxy and would require quite a bit of documentation for user customization
   * Creating an Ansible playbook for setup possibly the answer
+* Create dynamic AirFlow tasks to reduce code footprint
+  * For each download or load of data files, dynamically create tasks on the fly instead of hardcoding in DAG
