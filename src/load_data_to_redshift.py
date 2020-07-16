@@ -1,9 +1,9 @@
 import configparser
 import psycopg2
-from sql_queries import copy_table_queries, insert_table_queries
+from sql_queries import copy_table_queries, create_table_queries, drop_table_queries
 from sshtunnel import SSHTunnelForwarder
 
-def insert_tables(run_local = True, **kwargs):
+def run_queries(run_local = True, type = "create",  **kwargs):
     """
     Insert data into dimensional model from EMR created CSV files
  
@@ -19,6 +19,12 @@ def insert_tables(run_local = True, **kwargs):
     else:
         env = kwargs['dag_run'].conf['env']
 
+    if type == "create":
+        query_list = create_table_queries
+    elif type == "copy":
+        query_list = copy_table_queries
+    else:
+        query_list = drop_table_queries
 
     # Obtain RedShift cluster & db details
     # Obtain parameters from redshift.cfg
@@ -57,7 +63,7 @@ def insert_tables(run_local = True, **kwargs):
         cur = conn.cursor()
         
         # Loop through all queries in sql_queries.py
-        for query in insert_table_queries:
+        for query in query_list:
             print(query)
             cur.execute(query)
             conn.commit()
@@ -76,7 +82,9 @@ def main(**kwargs):
     None
     """
 
-    insert_tables()
+    run_queries(type = "drop")
+    run_queries(type = "create")
+    run_queries(type = "copy")
 
 
 if __name__ == "__main__":
