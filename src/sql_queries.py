@@ -150,4 +150,4 @@ IGNOREHEADER 1;
 create_table_queries = [dim_time_table_create, dim_date_table_create]
 drop_table_queries = [dim_time_table_drop, dim_date_table_drop, fact_cmplnt_table_drop]
 copy_table_queries = [dim_time_copy, dim_date_copy]
-transform_table_queries = [dim_date_transform, dim_time_transform]
+transform_table_queries = {"dim_date": dim_date_transform, "dim_time": dim_time_transform}
