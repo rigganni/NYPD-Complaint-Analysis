@@ -71,11 +71,11 @@ JOB_FLOW_OVERRIDES = {
     'Instances': {
         'MasterInstanceType': 'm5a.xlarge',
         'SlaveInstanceType': 'm5a.xlarge',
-        'InstanceCount': 2,
+        'InstanceCount': 3,
         'TerminationProtected': False,
         'Ec2KeyName': Variable.get("ec2_key_name"),
         'Ec2SubnetId': Variable.get("ec2_subnet_id"),
-        'KeepJobFlowAliveWhenNoSteps': False,
+        'KeepJobFlowAliveWhenNoSteps': True,
     },
     'BootstrapActions': [
         {
@@ -133,10 +133,6 @@ def download_store_s3(file_path, file_url, filename, **kwargs):
     else:
         logging.info("File " + filename + " already exists")
 
-def load_to_postgres():
-    #df = pd.read_csv
-    pass
-
 # DAG task to download NYPD complaint data to S3 compatible storage backend
 t1 = PythonOperator(
     task_id='download_nypd_complaint_store_s3',
@@ -190,13 +186,13 @@ job_sensor = EmrJobFlowSensor(
     dag=dag
 )
 
-# Adapted from https://airflow.readthedocs.io/en/latest/_modules/airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.html
-cluster_remover = EmrTerminateJobFlowOperator(
-      task_id='remove_cluster',
-      job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
-      aws_conn_id='aws_credentials',
-      dag=dag
-)
+## Adapted from https://airflow.readthedocs.io/en/latest/_modules/airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.html
+#cluster_remover = EmrTerminateJobFlowOperator(
+#      task_id='remove_cluster',
+#      job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
+#      aws_conn_id='aws_credentials',
+#      dag=dag
+#)
 
 # DAG task to create RedShift cluster
 create_redshift_cluster = PythonOperator(
@@ -239,5 +235,5 @@ t1 >> create_bastion_host >> load_data_to_redshift
 job_sensor >> load_data_to_redshift
 #t2 >> job_flow_creator
 #t3 >> job_flow_creator
-job_flow_creator >> job_sensor >> cluster_remover
+job_flow_creator >> job_sensor
 load_data_to_redshift >> cleanup_redshift_cluster
