@@ -54,3 +54,53 @@ pd.DataFrame(spark.sql("SELECT COUNT(1) AS cnt FROM nyc_weather").collect())
 
 pd.DataFrame(spark.sql("SELECT COUNT(1) AS cnt FROM nyc_weather").collect(),columns=['cnt']).cnt[0]
 
+def create_csv_for_redshift(spark, env="local", aws_access_key="", aws_secret_key="", dataset="", s3_uri="", sql=""):
+    """
+    NYPD complaint analysis
+
+    Parameters:
+    spark (pyspark.sql.SparkSession): Spark session
+    env (string): Environment (i.e. local or aws). Default: local
+    aws_access_key (string): AWS access key
+    aws_secret_key (string): AWS secret key
+    dataset (string): Dataset to transform & write to CSV
+    s3_uri (string): S3 URI of source data to transform
+    sql (string): SQL statement to transform dataset
+
+    Returns:
+    None
+    """
+
+    if env == "local":
+        config = configparser.ConfigParser()
+        config.read('/tmp/local.cfg')
+        aws_s3_uri = config.get("AWS", "AWS_S3_URI")
+        aws_access_key = config.get("AWS", "AWS_ACCESS_KEY_ID")
+        aws_secret_key = config.get("AWS", "AWS_SECRET_ACCESS_KEY")
+
+    df = spark.read.csv(s3_uri, inferSchema = True, header = True)
+
+    df.createOrReplaceTempView(dataset)
+
+    result = spark.sql(sql)
+
+    csv_file = "/tmp/" + dataset + ".csv"
+    s3_key = dataset + ".csv"
+
+    # Write Pandas dataframe to create single CSV file
+    # Utilizing Spark's csv write function creates many files 
+    result.toPandas().to_csv(csv_file, header=True, index=False)
+
+    # Set up boto3 S3 resource based on execution environment
+    if env == "local":
+        s3 = boto3.resource('s3',
+             endpoint_url=aws_s3_uri,
+             aws_access_key_id=aws_access_key,
+             aws_secret_access_key=aws_secret_key)
+    else:
+        s3 = boto3.resource('s3',
+             aws_access_key_id=aws_access_key,
+             aws_secret_access_key=aws_secret_key)
+
+    # Write CSV file to S3
+    s3.Bucket("nypd-complaint").upload_file(csv_file, s3_key)
