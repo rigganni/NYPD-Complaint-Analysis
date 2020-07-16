@@ -27,6 +27,17 @@ clean:
 cleanup_aws:
 	python src/cleanup_cluster.py
 
+# Source: https://stackoverflow.com/questions/53382383/makefile-cant-use-conda-activate
+# Need to specify bash in order for conda activate to work.
+SHELL=/bin/bash
+# Note that the extra activate is needed to ensure that the activate floats env to the front of PATH
+CONDA_ACTIVATE=source $$(conda info --base)/etc/profile.d/conda.sh ; conda activate ; conda activate
+CONDA_DEACTIVATE=source $$(conda info --base)/etc/profile.d/conda.sh ; conda deactivate ; conda deactivate
+.PHONY: load_data_to_redshift
+## Load data from S3 to RedShift
+load_data_to_redshift:
+	($(CONDA_ACTIVATE) nypd-complaint-analysis; cd src; python load_data_to_redshift.py; $(CONDA_DEACTIVATE))
+
 .PHONY: airflow_trigger_dag_local
 ## Execute airflow on local dev environment
 airflow_trigger_dag_local:
@@ -119,7 +130,7 @@ CONDA_DEACTIVATE=source $$(conda info --base)/etc/profile.d/conda.sh ; conda dea
 .PHONY: test_redshift_aws_creation
 ## Test creating of RedShift cluster
 test_redshift_aws_creation:
-	($(CONDA_ACTIVATE) nypd-complaint-analysis; cd src; python create_redshift_cluster_database.py; $(CONDA_DEACTIVATE) nypd-complaint-analysis)
+	($(CONDA_ACTIVATE) nypd-complaint-analysis; cd src; python create_redshift_cluster_database.py; $(CONDA_DEACTIVATE))
 
 .PHONY: connect_psql_redshift
 ## Connect to nypd_complaint via psql
