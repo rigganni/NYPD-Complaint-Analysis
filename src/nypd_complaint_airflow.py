@@ -77,7 +77,7 @@ JOB_FLOW_OVERRIDES = {
         'TerminationProtected': False,
         'Ec2KeyName': Variable.get("ec2_key_name"),
         'Ec2SubnetId': Variable.get("ec2_subnet_id"),
-        'KeepJobFlowAliveWhenNoSteps': True,
+        'KeepJobFlowAliveWhenNoSteps': False,
     },
     'BootstrapActions': [
         {
