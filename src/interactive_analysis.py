@@ -12,8 +12,8 @@ import pandas as pd
 import numpy as np
 
 env = sys.argv[1]
-nypd_cmplnt_file = "s3a://nypd-complaint/nypd-complaint.csv"
-nyc_weather_file = "s3a://nypd-complaint/nyc-weather.csv"
+nypd_cmplnt_file = "s3a://nypd-complaint/data/raw/nypd-complaint.csv"
+nyc_weather_file = "s3a://nypd-complaint/data/raw/nyc-weather.csv"
 
 if env == "local":
     config = configparser.ConfigParser()
