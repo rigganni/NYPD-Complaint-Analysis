@@ -98,7 +98,7 @@ airflow_clear_runs:
 ## Run local Spark transforms
 run_local_transform:
 	docker cp src/transform_data.py ${SPARK_LOCAL_MASTER_DOCKER_ID}:/tmp/.
-	docker cp local.cfg ${SPARK_LOCAL_MASTER_DOCKER_ID}:/tmp/.
+	docker cp src/local.cfg ${SPARK_LOCAL_MASTER_DOCKER_ID}:/tmp/.
 	docker exec -it ${SPARK_LOCAL_MASTER_DOCKER_ID} sh -c "python /tmp/transform_data.py 'local'"
 
 .PHONY: spark_analysis_local
