@@ -64,17 +64,23 @@ airflow_deploy:
 	cp src/load_data_to_redshift.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
 	cp src/create_bastion_host.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
 	cp src/cleanup_cluster.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
-	cp src/sql_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/emr_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
+	cp src/redshift_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/.
 	cp src/transform_data.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 	cp src/create_redshift_cluster_database.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 	cp src/redshift.cfg ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 	cp src/load_data_to_redshift.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 	cp src/create_bastion_host.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 	cp src/cleanup_cluster.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
-	cp src/sql_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/emr_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
+	cp src/redshift_queries.py ${AIRFLOW_DAG_ROOT_FOLDER}/nypd-complaint/.
 	docker cp src/redshift.cfg ${AIRFLOW_DOCKER_ID}:/tmp/.
 	docker cp src/bastion.cfg ${AIRFLOW_DOCKER_ID}:/tmp/.
 	docker cp ${AWS_EMR_SSH_IDENTITY_FILE} ${AIRFLOW_DOCKER_ID}:/tmp/pkey.pem
+	aws s3 cp src/emr_queries.py s3://nypd-complaint/code/emr_queries.py
+	aws s3 cp src/redshift_queries.py s3://nypd-complaint/code/redshift_queries.py
+	aws s3 cp src/transform_data.py s3://nypd-complaint/code/transform_data.py
+	aws s3 cp src/install-requirements.sh s3://nypd-complaint/code/install-requirements.sh
 
 .PHONY: airflow_get_configs
 ## Download configparser files from AirFlow to local environment
@@ -119,7 +125,8 @@ test_transform_aws:
 	$(eval dns=$(shell sh -c "aws emr describe-cluster --cluster-id $(emr_id) --region us-west-2 --query Cluster.MasterPublicDnsName"))
 	@echo $(dns)
 	scp  -i ${AWS_EMR_SSH_IDENTITY_FILE} -o StrictHostKeyChecking=no src/transform_data.py hadoop@$(dns):/tmp/.
-	aws emr add-steps --region us-west-2 --cluster-id $(emr_id) --steps Type="CUSTOM_JAR",Name="Test Transforms",Jar="command-runner.jar",ActionOnFailure="CONTINUE",Args="['sudo', '-H', '-u', 'hadoop', 'bash', '-c', \"/usr/bin/python3 /tmp/transform_data.py aws ${AWS_ACCESS_KEY} ${AWS_SECRET_ACCESS_KEY}\"]"
+	scp  -i ${AWS_EMR_SSH_IDENTITY_FILE} -o StrictHostKeyChecking=no src/emr_queries.py hadoop@$(dns):/tmp/.
+	aws emr add-steps --region us-west-2 --cluster-id $(emr_id) --steps Type="CUSTOM_JAR",Name="Test Transforms",Jar="command-runner.jar",ActionOnFailure="CONTINUE",Args="['sudo', '-H', '-u', 'hadoop', 'bash', '-c', \"cd /tmp; /usr/bin/python3 /tmp/transform_data.py aws ${AWS_ACCESS_KEY} ${AWS_SECRET_ACCESS_KEY}\"]"
 
 # Source: https://stackoverflow.com/questions/53382383/makefile-cant-use-conda-activate
 # Need to specify bash in order for conda activate to work.
