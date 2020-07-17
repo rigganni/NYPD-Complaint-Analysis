@@ -28,7 +28,14 @@ title {label: "NYPD Complaint Dimensional Data Model (RedShift Implementation)",
   military_time {label: "VARCHAR, NOT NULL"}
   hour_of_day {label: "SMALLINT, NOT NULL"}
   minute_of_hour {label: "SMALLINT, NOT NULL"}
-  minute_of_day {label: "SMALLINT, NOT NUL"}
+  minute_of_day {label: "SMALLINT, NOT NULL"}
+
+[dim_weather] {bgcolor: "#d0e0d0"}
+  *date_key {label: "INT, PRIMARY KEY"}
+  high_temp {label: "SMALLINT"}
+  low_temp {label: "SMALLINT"}
 
 fact_cmplnt *--1 dim_date
 fact_cmplnt *--1 dim_time
+fact_cmplnt *--1 dim_weather
+dim_date 1--1 dim_weather
