@@ -16,8 +16,10 @@ from load_data_to_redshift import *
 from cleanup_cluster import *
 
 etl_filename = "transform_data.py"
-s3_etl_uri = "s3://nypd-complaint/" + etl_filename
-s3_install_uri = "s3://nypd-complaint/install-requirements.sh"
+s3_etl_uri = "s3://nypd-complaint/code/" + etl_filename
+sql_filename = "emr_queries.py"
+s3_sql_uri = "s3://nypd-complaint/code/" + sql_filename
+s3_install_uri = "s3://nypd-complaint/code/install-requirements.sh"
 
 aws_hook = AwsHook('aws_credentials')
 credentials = aws_hook.get_credentials()
@@ -55,7 +57,7 @@ SPARK_STEPS = [
                 'hadoop',
                 'bash',
                 '-c',
-                "aws s3 cp " + s3_etl_uri + " /home/hadoop/" + etl_filename + " && sleep 30 && /usr/bin/python3 /home/hadoop/" + etl_filename + " aws " + aws_access_key + " " + aws_secret_key
+                "cd /home/hadoop; aws s3 cp " + s3_sql_uri + " /home/hadoop/" + sql_filename + "; aws s3 cp " + s3_etl_uri + " /home/hadoop/" + etl_filename + " && sleep 30 && /usr/bin/python3 /home/hadoop/" + etl_filename + " aws " + aws_access_key + " " + aws_secret_key
             ]
         }
     }
@@ -90,14 +92,14 @@ JOB_FLOW_OVERRIDES = {
     'ServiceRole': 'EMR_DefaultRole',
 }
 
-def download_store_s3(file_path, file_url, filename, **kwargs):
+def download_store_s3(file_path, file_url, s3_key, **kwargs):
     """
     Download and store files required by NYPD complaint analysis
 
     Parameters:
     file_path (string): Local file path to save to
     file_url (string): URL of file to download
-    filename (string): Name of downloaded file
+    s3_key (string): S3 key to use to store file
     kwargs: Keyword arguments
 
     Returns:
@@ -118,56 +120,45 @@ def download_store_s3(file_path, file_url, filename, **kwargs):
     # If not, create new bucket
     bucket_exists = s3.check_for_bucket("nypd-complaint")
     if not bucket_exists:
-        s3.create_bucket("nypd-complaint")
+        s3.create_bucket("nypd-complaint", region_name="us-west-2")
 
     # Download data and store to S3-compatible backend
-    file_exists = s3.check_for_key(filename, bucket_name="nypd-complaint")
+    file_exists = s3.check_for_key(s3_key, bucket_name="nypd-complaint")
     if not file_exists:
-        logging.info("Started download and storage of " + filename + " to S3 compatible storage backend")
+        logging.info("Started download and storage of " + "s3://nypd-complaint/" + s3_key + " to S3 compatible storage backend")
 
         # Download from url
         urllib.request.urlretrieve(file_url, file_path)
         s3.load_file(file_path,
-                     key=filename,
+                     key=s3_key,
                      bucket_name="nypd-complaint")
     else:
-        logging.info("File " + filename + " already exists")
+        logging.info("File " + "s3://nypd-complaint/" + s3_key  + " already exists")
 
 # DAG task to download NYPD complaint data to S3 compatible storage backend
-t1 = PythonOperator(
+download_nypd_data = PythonOperator(
     task_id='download_nypd_complaint_store_s3',
     provide_context=True,
     python_callable=download_store_s3,
     op_kwargs={'file_path': '/tmp/nypd-complaint.csv',
                'file_url': 'https://data.cityofnewyork.us/api/views/qgea-i56i/rows.csv?accessType=DOWNLOAD',
-               'filename': 'nypd-complaint.csv'
+               's3_key': 'data/raw/nypd-complaint.csv'
                },
     dag=dag
 )
 
 # DAG task to download NYC NOAA weather data to S3 compatible storage backend
-#t2 = PythonOperator(
+#download_nyc_noaa_data = PythonOperator(
 #    task_id='download_nyc_weather_store_s3',
 #    provide_context=True,
 #    python_callable=download_store_s3,
 #    op_kwargs={'file_path': '/tmp/nyc-weather.csv',
 #            'file_url': 'https://github.com/rigganni/NYPD-Complaint-Analysis/raw/master/data/nyc-weather.csv',
-#            'filename': 'nyc-weather.csv'
+#            's3_key': 'data/raw/nyc-weather.csv'
 #            },
 #    dag=dag
 #)
 
-# DAG task to download pip requirements file to S3
-#t3 = PythonOperator(
-#    task_id='download_install_requirements_store_s3',
-#    provide_context=True,
-#    python_callable=download_store_s3,
-#    op_kwargs={'file_path': '/tmp/install-requirements.sh',
-#            'file_url': 'https://github.com/rigganni/NYPD-Complaint-Analysis/raw/master/src/install-requirements.sh',
-#            'filename': 'install-requirements.sh'
-#            },
-#    dag=dag
-#)
 
 # Adapted from https://airflow.readthedocs.io/en/latest/_modules/airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.html
 job_flow_creator = EmrCreateJobFlowOperator(
@@ -186,14 +177,6 @@ job_sensor = EmrJobFlowSensor(
     dag=dag
 )
 
-## Adapted from https://airflow.readthedocs.io/en/latest/_modules/airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.html
-#cluster_remover = EmrTerminateJobFlowOperator(
-#      task_id='remove_cluster',
-#      job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
-#      aws_conn_id='aws_credentials',
-#      dag=dag
-#)
-
 # DAG task to create RedShift cluster
 create_redshift_cluster = PythonOperator(
     task_id='create_redshift_cluster',
@@ -208,11 +191,35 @@ create_bastion_host = PythonOperator(
     dag=dag
 )
 
-# DAG task to load data from S3 to RedShift
-load_data_to_redshift = PythonOperator(
-    task_id='load_data_to_redshift',
-    python_callable=insert_tables,
-    op_kwargs={'run_local': False },
+# DAG task to drop RedShift tables if existing
+drop_redshift_tables = PythonOperator(
+    task_id='drop_redshift_tables',
+    python_callable=run_queries,
+    op_kwargs={'run_local': False,
+               'type': 'drop' 
+              },
+    provide_context=True,
+    dag=dag
+)
+
+# DAG task to create RedShift tables
+create_redshift_tables = PythonOperator(
+    task_id='create_redshift_tables',
+    python_callable=run_queries,
+    op_kwargs={'run_local': False,
+               'type': 'create' 
+              },
+    provide_context=True,
+    dag=dag
+)
+
+# DAG task to create RedShift tables
+load_redshift_tables = PythonOperator(
+    task_id='load_redshift_tables',
+    python_callable=run_queries,
+    op_kwargs={'run_local': False,
+               'type': 'copy' 
+              },
     provide_context=True,
     dag=dag
 )
@@ -226,14 +233,15 @@ cleanup_redshift_cluster = PythonOperator(
     dag=dag
 )
 
-t1 >> job_flow_creator 
+download_nypd_data >> job_flow_creator 
 
 # Create AWS RedShift cluster while transformations run on AWS EMR
-t1 >> create_redshift_cluster >> load_data_to_redshift
-t1 >> create_bastion_host >> load_data_to_redshift
+download_nypd_data >> create_redshift_cluster >> drop_redshift_tables
+download_nypd_data >> create_bastion_host >> drop_redshift_tables
 
-job_sensor >> load_data_to_redshift
-#t2 >> job_flow_creator
-#t3 >> job_flow_creator
+job_sensor >> drop_redshift_tables
+#download_nyc_noaa_data >> job_flow_creator
 job_flow_creator >> job_sensor
-load_data_to_redshift >> cleanup_redshift_cluster
+drop_redshift_tables >> create_redshift_tables
+create_redshift_tables >> load_redshift_tables
+load_redshift_tables >> cleanup_redshift_cluster

@@ -1,6 +1,6 @@
 import configparser
 import psycopg2
-from sql_queries import copy_table_queries, create_table_queries, drop_table_queries
+from redshift_queries import copy_table_queries, create_table_queries, drop_table_queries
 from sshtunnel import SSHTunnelForwarder
 
 def run_queries(run_local = True, type = "create",  **kwargs):
@@ -62,7 +62,7 @@ def run_queries(run_local = True, type = "create",  **kwargs):
         conn = psycopg2.connect("host={} dbname={} user={} password={} port={}".format("127.0.0.1", DWH_DB, DWH_DB_USER, DWH_DB_PASSWORD, 5440))
         cur = conn.cursor()
         
-        # Loop through all queries in sql_queries.py
+        # Loop through all queries in redshift_queries.py
         for query in query_list:
             print(query)
             cur.execute(query)

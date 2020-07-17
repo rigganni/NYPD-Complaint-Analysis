@@ -10,7 +10,7 @@ import sys
 import pandas as pd
 import numpy as np
 import boto3
-from sql_queries import *
+from emr_queries import transform_table_queries
 
 
 def create_spark_session(env="local"):
@@ -86,7 +86,7 @@ def create_csv_for_redshift(spark, env="local", aws_access_key="", aws_secret_ke
     result = spark.sql(sql)
 
     csv_file = "/tmp/" + dataset + ".csv"
-    s3_key = dataset + ".csv"
+    s3_key = "data/transform/" + dataset + ".csv"
 
     # Write Pandas dataframe to create single CSV file
     # Utilizing Spark's csv write function creates many files 
@@ -124,13 +124,13 @@ def main():
     aws_secret_key = sys.argv[3]
     spark = create_spark_session(env)
 
-    for dataset, query in transform_sql_queries.items():
+    for dataset, query in transform_table_queries.items():
         create_csv_for_redshift(spark, 
                                 env, 
                                 aws_access_key, 
                                 aws_secret_key,
                                 dataset=dataset,
-                                s3_uri="s3a://nypd-complaint/raw/nypd-complaint.csv",
+                                s3_uri="s3a://nypd-complaint/data/raw/nypd-complaint.csv",
                                 sql=query
                                 )
 
