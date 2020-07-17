@@ -80,7 +80,18 @@ fact_cmplnt_transform= ("""
     FROM cte;
 """)
 
-transform_table_queries = {"dim_date": dim_date_transform,
-                           "dim_time": dim_time_transform,
-                           "fact_cmplnt": fact_cmplnt_transform
+dim_weather_transform= ("""
+    SELECT date_format(to_date(DATE, 'YYYY-MM-DD'), 'yyyyMMdd') AS date_key,
+           regexp_replace(MAX(HourlyDryBulbTemperature), '[^0-9]+', '') AS high_temp, --fix random non-numerica data
+           regexp_replace(MIN(HourlyDryBulbTemperature), '[^0-9]+', '') AS low_temp --fix random non-numerica data
+    FROM dim_weather
+    GROUP BY date_format(to_date(DATE, 'YYYY-MM-DD'), 'yyyyMMdd')
+    ORDER BY date_key DESC;
+""")
+
+
+transform_table_queries = {"dim_date": {"source_data": "nypd-complaint.csv", "query": dim_date_transform},
+                           "dim_time": {"source_data": "nypd-complaint.csv", "query": dim_time_transform},
+                           "fact_cmplnt": {"source_data": "nypd-complaint.csv", "query": fact_cmplnt_transform},
+                           "dim_weather": {"source_data": "nyc-weather.csv", "query": dim_weather_transform}
                            }
