@@ -1,0 +1,34 @@
+title {label: "NYPD Complaint Dimensional Data Model (RedShift Implementation)", size: "20"}
+
+[fact_cmplnt]  {bgcolor: "#ececfc"}
+  *cmplnt_key {label: "BIGINT, PRIMARY KEY"}
+  +date_key {label: "INT, NOT NULL"}
+  +time_key {label: "SMALLINT, NOT NULL"}
+
+[dim_date] {bgcolor: "#d0e0d0"}
+  *key {label: "INT, PRIMARY KEY"}
+  date {label: "DATE, NOT NULL"}
+  day {label: "SMALLINT, NOT NULL"}
+  day_of_week {label: "SMALLINT, NOT NULL"}
+  day_of_week_name {label: "VARCHAR, NOT NULL"}
+  day_of_year {label: "SMALLINT, NOT NULL"}
+  day_of_month {label: "SMALLINT, NOT NULL"}
+  month {label: "SMALLINT, NOT NULL"}
+  month_name {label: "VARCHAR, NOT NULL"}
+  weekday {label: "SMALLINT, NOT NULL"}
+  week_of_year {label: "SMALLINT, NOT NULL"}
+  quarter {label: "SMALLINT, NOT NULL"}
+
+[dim_time] {bgcolor: "#d0e0d0"}
+  *key {label: "SMALLINT, PRIMARY KEY"}
+  time {label: "VARCHAR, NOT NULL"}
+  clock_hour_of_day {label: "SMALLINT, NOT NULL"}
+  hour_of_am_pm {label: "SMALLINT, NOT NULL"}
+  am_pm_of_day {label: "VARCHAR, NOT NULL"}
+  military_time {label: "VARCHAR, NOT NULL"}
+  hour_of_day {label: "SMALLINT, NOT NULL"}
+  minute_of_hour {label: "SMALLINT, NOT NULL"}
+  minute_of_day {label: "SMALLINT, NOT NUL"}
+
+fact_cmplnt *--1 dim_date
+fact_cmplnt *--1 dim_time
