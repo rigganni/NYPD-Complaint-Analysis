@@ -9,6 +9,7 @@ DWH_IAM_ROLE = config.get("DWH", "IAM_ROLE_ARN")
 
 dim_time_table_drop = "DROP TABLE IF EXISTS dim_time"
 dim_date_table_drop = "DROP TABLE IF EXISTS dim_date"
+dim_weather_table_drop = "DROP TABLE IF EXISTS dim_weather"
 fact_cmplnt_table_drop = "DROP TABLE IF EXISTS fact_cmplnt"
 
 # CREATE TABLES
@@ -18,6 +19,14 @@ CREATE TABLE fact_cmplnt (
     cmplnt_key BIGINT PRIMARY KEY,
     date_key INT NOT NULL,
     time_key SMALLINT NOT NULL
+    );
+""")
+
+dim_weather_table_create = ("""
+CREATE TABLE dim_weather (
+    date_key INT PRIMARY KEY,
+    high_temp SMALLINT,
+    low_temp SMALLINT
     );
 """)
 
@@ -63,6 +72,14 @@ CSV
 IGNOREHEADER 1;
 """).format(DWH_IAM_ROLE)
 
+dim_weather_copy = ("""
+COPY dim_weather
+FROM 's3://nypd-complaint/data/transform/dim_weather.csv'
+IAM_ROLE '{}'
+REGION 'us-west-2'
+CSV
+IGNOREHEADER 1;
+""").format(DWH_IAM_ROLE)
 
 dim_date_copy = ("""
 COPY dim_date
@@ -84,6 +101,6 @@ IGNOREHEADER 1;
 
 # QUERY LISTS
 
-create_table_queries = [dim_time_table_create, dim_date_table_create, fact_cmplnt_table_create]
-drop_table_queries = [dim_time_table_drop, dim_date_table_drop, fact_cmplnt_table_drop]
-copy_table_queries = [dim_time_copy, dim_date_copy, fact_cmplnt_copy]
+create_table_queries = [dim_time_table_create, dim_date_table_create, fact_cmplnt_table_create, dim_weather_table_create]
+drop_table_queries = [dim_time_table_drop, dim_date_table_drop, fact_cmplnt_table_drop, dim_weather_table_drop]
+copy_table_queries = [dim_time_copy, dim_date_copy, fact_cmplnt_copy, dim_weather_copy]
