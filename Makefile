@@ -128,6 +128,11 @@ test_transform_aws:
 	scp  -i ${AWS_EMR_SSH_IDENTITY_FILE} -o StrictHostKeyChecking=no src/emr_queries.py hadoop@$(dns):/tmp/.
 	aws emr add-steps --region us-west-2 --cluster-id $(emr_id) --steps Type="CUSTOM_JAR",Name="Test Transforms",Jar="command-runner.jar",ActionOnFailure="CONTINUE",Args="['sudo', '-H', '-u', 'hadoop', 'bash', '-c', \"cd /tmp; /usr/bin/python3 /tmp/transform_data.py aws ${AWS_ACCESS_KEY} ${AWS_SECRET_ACCESS_KEY}\"]"
 
+.PHONY: test_dimenional_model_datasets
+## Test transform_data.py on existing EMR instance on AWS
+test_dimenional_model_datasets:
+	pytest src/transform_data.py
+
 # Source: https://stackoverflow.com/questions/53382383/makefile-cant-use-conda-activate
 # Need to specify bash in order for conda activate to work.
 SHELL=/bin/bash
@@ -172,9 +177,7 @@ mount_aws_emr_log_directory:
 .PHONY: lint
 ## Lint all python files
 lint:
-	yapf -i src/load_data.py
-	yapf -i src/nypd_complaint_airflow_etl.py
-	yapf -i src/transform_data.py
+	yapf -i src/*.py
 
 #################################################################################
 # Self Documenting Commands                                                     #

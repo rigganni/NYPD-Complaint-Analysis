@@ -89,9 +89,24 @@ dim_weather_transform= ("""
     ORDER BY date_key DESC;
 """)
 
+# Test queries
+
+fact_cmplnt_test ("""
+    SELECT COUNT(1) as result
+    FROM fact_cmplnt;
+""")
+
+dim_weather_test ("""
+    SELECT COUNT(1) as result
+    FROM dim_weather;
+""")
 
 transform_table_queries = {"dim_date": {"source_data": "nypd-complaint.csv", "query": dim_date_transform},
                            "dim_time": {"source_data": "nypd-complaint.csv", "query": dim_time_transform},
                            "fact_cmplnt": {"source_data": "nypd-complaint.csv", "query": fact_cmplnt_transform},
                            "dim_weather": {"source_data": "nyc-weather.csv", "query": dim_weather_transform}
                            }
+
+test_table_queries = {"fact_cmplnt": {"source_data": "fact_cmplnt.csv", "query": fact_cmplnt_test, "expected_value": 7309655},
+                      "dim_weather": {"source_data": "dim_weather.csv", "query": dim_weather_test, "expected_value": 5303}
+                     }

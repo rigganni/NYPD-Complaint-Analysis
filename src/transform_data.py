@@ -55,6 +55,39 @@ def create_spark_session(env="local"):
 
     return spark
 
+def test_redshift_dataset(spark, env="local", dataset="", s3_uri="", sql="", expected_value=0):
+    """
+    Tests of EMR-created CSV files to be imported into AWS RedShift
+
+    Parameters:
+    spark (pyspark.sql.SparkSession): Spark session
+    env (string): Environment (i.e. local or aws). Default: local
+    dataset (string): Dataset to transform & write to CSV
+    s3_uri (string): S3 URI of source data to transform
+    sql (string): SQL statement to transform dataset
+    expected_value (int): Expected value of test
+
+    Returns:
+    None
+    """
+
+    # Set local environment variables if running locally
+    if env == "local":
+        config = configparser.ConfigParser()
+        config.read('/tmp/local.cfg')
+        aws_s3_uri = config.get("AWS", "AWS_S3_URI")
+        aws_access_key = config.get("AWS", "AWS_ACCESS_KEY_ID")
+        aws_secret_key = config.get("AWS", "AWS_SECRET_ACCESS_KEY")
+
+    # Create Spark temp view from newly created CSV file
+    df = spark.read.csv(s3_uri, inferSchema = True, header = True)
+    df.createOrReplaceTempView(dataset)
+
+    result = spark.sql(sql).toPandas()['result'].iloc[0]
+
+    # Perform unit tes
+    assert result == expected_value
+
 def create_csv_for_redshift(spark, env="local", aws_access_key="", aws_secret_key="", dataset="", s3_uri="", sql=""):
     """
     NYPD complaint analysis
@@ -72,6 +105,7 @@ def create_csv_for_redshift(spark, env="local", aws_access_key="", aws_secret_ke
     None
     """
 
+    # Set local environment variables if running locally
     if env == "local":
         config = configparser.ConfigParser()
         config.read('/tmp/local.cfg')
@@ -125,7 +159,7 @@ def main():
     aws_secret_key = sys.argv[3]
     spark = create_spark_session(env)
 
-    # Iterate through each data set and transform into dimensional model
+    # Iterate through each dataset and transform into dimensional model
     for dataset, details in transform_table_queries.items():
         create_csv_for_redshift(spark, 
                                 env, 
@@ -134,6 +168,16 @@ def main():
                                 dataset=dataset,
                                 s3_uri="s3a://nypd-complaint/data/raw/" + details["source_data"],
                                 sql=details["query"]
+                                )
+
+    # Iterate through each newly created dataset and run unit tests
+    for dataset, details in test_table_queries.items():
+        test_redshift_dataset(spark, 
+                                env, 
+                                dataset=dataset,
+                                s3_uri="s3a://nypd-complaint/data/transform/" + details["source_data"],
+                                sql=details["query"],
+                                expected_value=details["expected_value"]
                                 )
 
 if __name__ == "__main__":
