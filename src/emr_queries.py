@@ -1,6 +1,6 @@
 # AWS EMR transform queries
 
-dim_time_transform= ("""
+dim_time_transform = ("""
     WITH cte as
     (SELECT *,
            IF (year(to_timestamp(concat(string(CMPLNT_FR_DT), ' ', string(CMPLNT_FR_TM)), 'MM/dd/yyyy HH:mm:ss')) < 1678, NULL, to_timestamp(concat(string(CMPLNT_FR_DT), ' ', string(CMPLNT_FR_TM)), 'MM/dd/yyyy HH:mm:ss')) AS CMPLNT_TIMESTAMP
@@ -30,7 +30,7 @@ dim_time_transform= ("""
     ORDER BY key;
 """)
 
-dim_date_transform= ("""
+dim_date_transform = ("""
     WITH cte as
     (SELECT *,
            IF (year(to_timestamp(string(CMPLNT_FR_DT), 'MM/dd/yyyy')) < 1678, NULL, to_timestamp(string(CMPLNT_FR_DT), 'MM/dd/yyyy')) AS CMPLNT_TIMESTAMP
@@ -66,7 +66,7 @@ dim_date_transform= ("""
     ORDER BY key;
 """)
 
-fact_cmplnt_transform= ("""
+fact_cmplnt_transform = ("""
     WITH cte as
     (SELECT *,
            IF (year(to_timestamp(string(CMPLNT_FR_DT), 'MM/dd/yyyy')) < 1678, NULL, to_timestamp(string(CMPLNT_FR_DT), 'MM/dd/yyyy')) AS CMPLNT_DATE_TIMESTAMP,
@@ -80,7 +80,7 @@ fact_cmplnt_transform= ("""
     FROM cte;
 """)
 
-dim_weather_transform= ("""
+dim_weather_transform = ("""
     SELECT date_format(to_date(DATE, 'YYYY-MM-DD'), 'yyyyMMdd') AS date_key,
            regexp_replace(MAX(HourlyDryBulbTemperature), '[^0-9]+', '') AS high_temp, --fix random non-numerica data
            regexp_replace(MIN(HourlyDryBulbTemperature), '[^0-9]+', '') AS low_temp --fix random non-numerica data
@@ -91,22 +91,44 @@ dim_weather_transform= ("""
 
 # Test queries
 
-fact_cmplnt_test ("""
+fact_cmplnt_test("""
     SELECT COUNT(1) as result
     FROM fact_cmplnt;
 """)
 
-dim_weather_test ("""
+dim_weather_test("""
     SELECT COUNT(1) as result
     FROM dim_weather;
 """)
 
-transform_table_queries = {"dim_date": {"source_data": "nypd-complaint.csv", "query": dim_date_transform},
-                           "dim_time": {"source_data": "nypd-complaint.csv", "query": dim_time_transform},
-                           "fact_cmplnt": {"source_data": "nypd-complaint.csv", "query": fact_cmplnt_transform},
-                           "dim_weather": {"source_data": "nyc-weather.csv", "query": dim_weather_transform}
-                           }
+transform_table_queries = {
+    "dim_date": {
+        "source_data": "nypd-complaint.csv",
+        "query": dim_date_transform
+    },
+    "dim_time": {
+        "source_data": "nypd-complaint.csv",
+        "query": dim_time_transform
+    },
+    "fact_cmplnt": {
+        "source_data": "nypd-complaint.csv",
+        "query": fact_cmplnt_transform
+    },
+    "dim_weather": {
+        "source_data": "nyc-weather.csv",
+        "query": dim_weather_transform
+    }
+}
 
-test_table_queries = {"fact_cmplnt": {"source_data": "fact_cmplnt.csv", "query": fact_cmplnt_test, "expected_value": 7309655},
-                      "dim_weather": {"source_data": "dim_weather.csv", "query": dim_weather_test, "expected_value": 5303}
-                     }
+test_table_queries = {
+    "fact_cmplnt": {
+        "source_data": "fact_cmplnt.csv",
+        "query": fact_cmplnt_test,
+        "expected_value": 7309655
+    },
+    "dim_weather": {
+        "source_data": "dim_weather.csv",
+        "query": dim_weather_test,
+        "expected_value": 5303
+    }
+}

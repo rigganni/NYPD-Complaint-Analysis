@@ -101,6 +101,14 @@ IGNOREHEADER 1;
 
 # QUERY LISTS
 
-create_table_queries = [dim_time_table_create, dim_date_table_create, fact_cmplnt_table_create, dim_weather_table_create]
-drop_table_queries = [dim_time_table_drop, dim_date_table_drop, fact_cmplnt_table_drop, dim_weather_table_drop]
-copy_table_queries = [dim_time_copy, dim_date_copy, fact_cmplnt_copy, dim_weather_copy]
+create_table_queries = [
+    dim_time_table_create, dim_date_table_create, fact_cmplnt_table_create,
+    dim_weather_table_create
+]
+drop_table_queries = [
+    dim_time_table_drop, dim_date_table_drop, fact_cmplnt_table_drop,
+    dim_weather_table_drop
+]
+copy_table_queries = [
+    dim_time_copy, dim_date_copy, fact_cmplnt_copy, dim_weather_copy
+]
