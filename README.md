@@ -2,6 +2,9 @@
 
 An analysis of NYPD complaints using open data sources.
 
+![dimensional-model-redshift](./images/dimensional_model.er.png)
+![nypc-complaint-airflow](./images/nypd-complaint-airflow.png)
+
 #### Sources
 
 * NYPD Complaint Data
