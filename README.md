@@ -98,7 +98,7 @@ Clone this repository:
 
 Install Apache Airflow. The following is a docker-compose snippet to assist in setting up:
 
-```
+```docker
 postgres-airflow:
     image: postgres:9.6
     container_name: postgres-airflow
@@ -180,7 +180,7 @@ Install [Apache Spark](https://spark.apache.org/) and [Minio](https://min.io/) i
 
 Example Spark bash docker start script:
 
-```
+```bash
 docker pull docker.io/bitnami/spark:latest
 
 # Stop running spark containers if already running
@@ -243,7 +243,7 @@ docker exec -it -u root spark sh -c "python -m pip install wheel pyspark pandas 
 
 Example Minio docker-compose snippet:
 
-```
+```docker
 minio-1:
     image: minio/minio
     container_name: minio-1
