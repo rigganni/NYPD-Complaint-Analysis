@@ -21,6 +21,7 @@ sql_filename = "emr_queries.py"
 s3_sql_uri = "s3://nypd-complaint/code/" + sql_filename
 s3_install_uri = "s3://nypd-complaint/code/install-requirements.sh"
 
+# AWS hook used for S3 bucket creation & file downloads
 aws_hook = AwsHook('aws_credentials')
 credentials = aws_hook.get_credentials()
 aws_access_key = credentials.access_key
@@ -148,16 +149,16 @@ download_nypd_data = PythonOperator(
 )
 
 # DAG task to download NYC NOAA weather data to S3 compatible storage backend
-#download_nyc_noaa_data = PythonOperator(
-#    task_id='download_nyc_weather_store_s3',
-#    provide_context=True,
-#    python_callable=download_store_s3,
-#    op_kwargs={'file_path': '/tmp/nyc-weather.csv',
-#            'file_url': 'https://github.com/rigganni/NYPD-Complaint-Analysis/raw/master/data/nyc-weather.csv',
-#            's3_key': 'data/raw/nyc-weather.csv'
-#            },
-#    dag=dag
-#)
+download_nyc_noaa_data = PythonOperator(
+    task_id='download_nyc_weather_store_s3',
+    provide_context=True,
+    python_callable=download_store_s3,
+    op_kwargs={'file_path': '/tmp/nyc-weather.csv',
+            'file_url': 'https://github.com/rigganni/NYPD-Complaint-Analysis/raw/master/data/nyc-weather.csv',
+            's3_key': 'data/raw/nyc-weather.csv'
+            },
+    dag=dag
+)
 
 
 # Adapted from https://airflow.readthedocs.io/en/latest/_modules/airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.html
@@ -238,9 +239,9 @@ download_nypd_data >> job_flow_creator
 # Create AWS RedShift cluster while transformations run on AWS EMR
 download_nypd_data >> create_redshift_cluster >> drop_redshift_tables
 download_nypd_data >> create_bastion_host >> drop_redshift_tables
-
+download_nyc_noaa_data >> create_redshift_cluster >> drop_redshift_tables
+download_nyc_noaa_data >> create_bastion_host >> drop_redshift_tables
 job_sensor >> drop_redshift_tables
-#download_nyc_noaa_data >> job_flow_creator
 job_flow_creator >> job_sensor
 drop_redshift_tables >> create_redshift_tables
 create_redshift_tables >> load_redshift_tables
