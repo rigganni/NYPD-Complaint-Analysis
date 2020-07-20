@@ -3,6 +3,16 @@ import configparser
 
 
 def cleanup_cluster(run_local = True, **kwargs):
+    """
+    Delete / terminiate bastion AWS EC2 host and AWS Redshift cluster
+
+    Parameters:
+    run_local (boolean): Environment local or not
+    kwargs: Keyword arguments from Airflow
+
+    Returns:
+    None
+    """
 
     if not run_local:
         # Exit cleanup_cluster 
@@ -54,6 +64,16 @@ def cleanup_cluster(run_local = True, **kwargs):
     ec2.instances.filter(InstanceIds = ids).terminate()
 
 def main():
+    """
+    Delete / terminiate bastion AWS EC2 host and AWS Redshift cluster
+
+    Parameters:
+    None
+
+    Returns:
+    None
+    """
+
     cleanup_cluster()
 
 if __name__ == "__main__":

@@ -8,6 +8,8 @@ def run_queries(run_local = True, type = "create",  **kwargs):
     Insert data into dimensional model from EMR created CSV files
  
     Parameters:
+    run_local (boolean): Running local or not
+    type (string): Used to pull correct query list
     kwargs: Keyword arguments
  
     Returns:
@@ -76,12 +78,13 @@ def main(**kwargs):
     Load and insert data into nypc_complaint RedShift database
  
     Parameters:
-    None
+    kwargs: Keyword arguments passed by Airflow
  
     Returns:
     None
     """
 
+    # Run drop, create, and copy RedShift queries
     run_queries(type = "drop")
     run_queries(type = "create")
     run_queries(type = "copy")

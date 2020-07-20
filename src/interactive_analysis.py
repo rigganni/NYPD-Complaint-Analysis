@@ -1,3 +1,5 @@
+# File used to create interactive analysis session on AWS EMR cluster
+
 import configparser
 import boto3
 from datetime import datetime
